@@ -1,0 +1,226 @@
+options(java.parameters = "-Xmx64048m")
+
+library(shiny)
+library(fmsb)
+library(shinydashboard)
+library(caret)
+library(shinythemes)
+
+pokemon <- read.csv("pokemon.csv")
+fight <- read.csv("weakness.csv")
+ui <- fluidPage(
+  theme = shinytheme("yeti"),
+  titlePanel(
+    fluidRow(
+      column(4,""),
+      column(4, img(src = "https://upload.cc/i1/2019/10/04/qavHYP.jpg", 
+                    height = 150, align = "center")),
+      column(4,""))),
+  sidebarLayout(
+  sidebarPanel(
+      fluidRow(
+        selectInput(inputId = "type", 
+              label = "Choose a type",
+              choices = pokemon$Type_1,
+              selected = 1),
+        
+        uiOutput("secondSelection")),
+      
+      fluidRow(
+        align = "center",
+        htmlOutput("image"),
+        h3(textOutput("name")),
+        h4(textOutput("generation")))
+  ),
+  mainPanel(
+      tabsetPanel(
+        tabPanel("General Information", 
+               wellPanel(
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Weight", width = 4, heigth = 6,h4(strong(textOutput("weight")))),
+                          box(
+                            title ="Height", width = 4, heigth = 6,h4(strong(textOutput("height")))),
+                          box(
+                            title ="Color", width = 4, heigth = 6,h4(strong(textOutput("color"))))
+                 )),
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Type 1", width = 6, heigth = 6,h4(strong(textOutput("type1")))),
+                          box(
+                            title ="Type 2", width = 6, heigth = 6,h4(strong(textOutput("type2"))))
+                   )),
+                 
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Egg Group 1", width = 6, heigth = 6, h4(strong(textOutput("egg_group1")))),
+                          box(
+                            title ="Egg Group 2",width = 6, heigth = 6, h4(strong(textOutput("egg_group2"))))
+                   )), 
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Gender", width = 6, heigth = 6, h4(strong(textOutput("Gender")))),
+                          box(
+                            title ="Male Rate",width = 6, heigth = 6, h4(strong(textOutput("Pr_Male"))))
+                   )), 
+                 
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Body Style", width = 6, heigth = 6, h4(strong(textOutput("body_style")))),
+                          box(
+                            title ="Catch Rate",width = 6, heigth = 6, h4(strong(textOutput("catch_rate"))))
+                   )) 
+                 )
+               ),
+        
+        tabPanel("Fight Information", 
+                 plotOutput("radar",width = "100%", height = "550px"),
+                 fluidRow(align ="center",
+                 h4(tableOutput("table1")),
+                 br(),
+                 h4(strong("Average for Type")),
+                 h4(tableOutput("table2")))
+        ),
+        tabPanel("Fight Prediction", 
+                 fluidRow(
+                   tableOutput("table4"),
+                   tableOutput("table5"),
+                   tableOutput("table6"),
+                   tableOutput("table7")),
+  
+                 fluidRow(
+                   tableOutput("table3")
+                 )
+                 )
+        )
+    )
+   )
+)
+
+
+server <- function(input, output) {
+  
+  output$secondSelection <- renderUI({
+    selectInput(inputId = "Pokemon",  
+                label = "Choose a name", 
+                choices = as.character(pokemon[pokemon$Type_1==input$type,"Name"]))
+    }) 
+  
+ 
+  output$name <-renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Name"])
+    })
+  
+  output$generation <-renderText({
+    paste0("Generation ", pokemon[pokemon$Name == input$Pokemon,"Generation"])
+  })
+  
+  output$type1 <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Type_1"])
+  })
+  
+  output$height <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Height_m"])
+  })
+  
+  output$weight <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Weight_kg"])
+  })
+  
+  output$color <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Color"])
+  })
+  
+  output$type2 <- renderText({
+    ifelse(pokemon[pokemon$Name == input$Pokemon,"Type_2"] == "",
+           "NA",as.character(pokemon[pokemon$Name == input$Pokemon,"Type_2"]))
+  })
+
+  output$egg_group1 <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Egg_Group_1"])
+  })
+  
+  output$egg_group2 <- renderText({
+    ifelse(pokemon[pokemon$Name == input$Pokemon,"Egg_Group_2"] == "",
+           "NA",as.character(pokemon[pokemon$Name == input$Pokemon,"Egg_Group_2"]))
+  })
+  
+  output$Gender <- renderText({
+    ifelse(as.character(pokemon[pokemon$Name == input$Pokemon,"hasGender"]) == TRUE,"Male & Female","Male")
+  })
+  
+  output$Pr_Male <- renderText({
+    a <-pokemon[pokemon$Name == input$Pokemon,"Pr_Male"]
+    c <-a*100
+    paste0(c,"%")
+  })
+  
+  output$body_style <- renderText({
+    as.character(pokemon[pokemon$Name == input$Pokemon,"Body_Style"])
+  })
+  
+  output$catch_rate <- renderText({
+    paste0(as.character(pokemon[pokemon$Name == input$Pokemon,"Catch_Rate"]),"%")
+  })
+  
+  output$table1 <- renderTable(
+    pokemon[pokemon$Name == input$Pokemon,c(2,6:12)],
+    width = 50
+  )
+  
+  
+  avg <- data.frame(aggregate(cbind(Total,HP,Attack,Defense,Sp_Atk,Sp_Def,Speed) ~ Type_1, data=pokemon, FUN=mean))
+  
+  output$table2 <- renderTable(
+   avg[avg$Type_1 == input$type,],
+    width = 50,
+    digits = 0
+  )
+  
+ output$radar <-renderPlot({
+    data <- as.data.frame(matrix(c(255,165,230,154,230,160), ncol = 6))
+    colnames(data) <- c("HP","Attack","Defense","Sp_Atk","Sp_Def", "Speed")
+    data <- rbind(data,rep(0,6),rep(0,6))
+    data[3,] <- as.data.frame(pokemon[pokemon$Name == input$Pokemon,7:12])
+    radarchart(data)
+  })  
+ 
+  output$image <- renderUI({
+  src = as.character(pokemon[pokemon$Name == input$Pokemon,"url"])
+  tags$img(src=src,
+           height = 250,
+           width = 250)
+  })
+
+  output$table4 <- renderTable(
+    fight[fight$Type == input$type,c(1,2)]
+  )
+  
+  output$table5 <- renderTable(
+    fight[fight$Type == input$type,c(1,3)]
+  )
+  
+  output$table6 <- renderTable(
+    fight[fight$Type == input$type,c(1,4)]
+  )
+  
+  output$table7 <- renderTable(
+    fight[fight$Type == input$type,c(1,5)]
+  )
+  
+  source("predict.R")
+  
+  output$table3 <- renderTable(
+    predict1(input$Pokemon),
+    width = 50,
+    digits = 2
+  )
+  
+} 
+
+shinyApp(ui = ui, server = server)
