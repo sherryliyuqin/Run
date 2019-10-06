@@ -1,0 +1,49 @@
+
+predict1 = function(pokemonname) {
+   
+   library(caret)
+   library(h2o)
+   
+   # pokemonname = "Pikachu"
+   
+   pokemon <- read.csv("pokemon.csv")
+   combat <- read.csv("combats.csv")
+   
+   h2o.init(nthreads=12, max_mem_size="64g")
+   h2o.clusterInfo()
+   
+   preddata <- pokemon[,c(2,4,7:12)]
+   names(preddata)[1] <- "y"
+   dummies <- dummyVars(y ~ ., data = preddata)           
+   ex <- data.frame(predict(dummies, newdata = preddata)) 
+   preddata <- cbind(preddata$y, ex)                             
+   names(preddata)[1] <- "Name"
+   colnames(preddata)[20:25] <- c("Type1HP","Type1Attack","Type1Defense","Type1Sp_Atk","Type1Sp_Def","Type1Speed")
+   rm(dummies,ex) 
+   
+   a <- preddata[preddata$Name == pokemonname,2:25]
+   colnames(a) <- c("Type_2.Bug","Type_2.Dark","Type_2.Dragon","Type_2.Electric","Type_2.Fairy","Type_2.Fighting",
+                    "Type_2.Fire","Type_2.Flying","Type_2.Ghost","Type_2.Grass","Type_2.Ground","Type_2.Ice",     
+                    "Type_2.Normal","Type_2.Poison","Type_2.Psychic","Type_2.Rock","Type_2.Steel","Type_2.Water",   
+                    "Type2HP","Type2Attack","Type2Defense","Type2Sp_Atk","Type2Sp_Def","Type2Speed")
+   
+   pred <- cbind(preddata,a)
+   
+   h2o_te <- as.h2o(pred)
+   
+   type <- pokemon[pokemon$Name == pokemonname,4]
+   dl <-h2o.loadModel(paste0("model_",type))
+   
+   p <- h2o.predict(dl, h2o_te)
+   predprob <- as.data.frame(p)
+   
+   predprob <- cbind(preddata$Name,predprob)
+   names(predprob) <- c("Name","Probability")
+   predprob <- predprob[with(predprob, order(-Probability)), ]
+
+   result <- head(predprob)
+   final <-merge(result,pokemon[,c(2,6:12)], by.x = "Name")
+   final <- final[with(final, order(-Probability)), ]
+   final
+   
+}
