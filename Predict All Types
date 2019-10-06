@@ -1,0 +1,65 @@
+library(caret)
+library(h2o)
+
+h2o.init(nthreads=12, max_mem_size="64g")
+h2o.clusterInfo()
+
+pokemon <- read.csv("pokemon.csv")
+combat <- read.csv("combats.csv")
+combat1 <- combat[,-c(1,2,3,4,7)]
+
+names(combat1)[1] <- "Type_1"
+names(combat1)[2] <- "Type_2"
+combat1 <- combat1[,c(3,1,4:9,2,10:15)]
+names(combat1)[1] <- "y"
+
+a <- unique(as.character(pokemon$Type_1),FALSE)
+modellist <- list()
+for (i in 1:18){
+   combat_1 <- combat1[combat1$Type_2 == a[i],]
+   combat_2 <- combat1[combat1$Type_1 == a[i],]
+   combat_2 <- combat_2[,c(1,9:15,2:8)]
+   
+   for (j in 1:nrow(combat_2)){
+      ifelse(combat_2[j,1] == 1,combat_2[j,1] <- 0, combat_2[j,1] <-1)
+   }
+   
+   combat2 <-rbind(combat_1,combat_2)
+   
+   dummies <- dummyVars(y ~ ., data = combat2)           
+   ex <- data.frame(predict(dummies, newdata = combat2)) 
+   combat2 <- cbind(combat2$y, ex)                             
+   names(combat2)[1] <- "y"                             
+   rm(dummies, ex) 
+   
+   data <- as.h2o(combat2)
+   
+   y <- "y"                               
+   x <- setdiff(names(data), y)            
+   parts <- h2o.splitFrame(data, 0.7, seed=99) 
+   train <- parts[[1]]              
+   test <- parts[[2]]    
+   
+   modellist[[i]]  <- h2o.deeplearning(x, y, train)
+
+
+}
+
+model_Grass <- h2o.saveModel(object=modellist[[1]], path=getwd(), force=TRUE)
+model_Fire <- h2o.saveModel(object=modellist[[2]], path=getwd(), force=TRUE)
+model_Water <- h2o.saveModel(object=modellist[[3]], path=getwd(), force=TRUE)
+model_Bug <- h2o.saveModel(object=modellist[[4]], path=getwd(), force=TRUE)
+model_Normal <- h2o.saveModel(object=modellist[[5]], path=getwd(), force=TRUE)
+model_Poison <- h2o.saveModel(object=modellist[[6]], path=getwd(), force=TRUE)
+model_Electric <- h2o.saveModel(object=modellist[[7]], path=getwd(), force=TRUE)
+model_Ground <- h2o.saveModel(object=modellist[[8]], path=getwd(), force=TRUE)
+model_Fairy <- h2o.saveModel(object=modellist[[9]], path=getwd(), force=TRUE)
+model_Fighting <- h2o.saveModel(object=modellist[[10]], path=getwd(), force=TRUE)
+model_Psychic <- h2o.saveModel(object=modellist[[11]], path=getwd(), force=TRUE)
+model_Rock <- h2o.saveModel(object=modellist[[12]], path=getwd(), force=TRUE)
+model_Ghost <- h2o.saveModel(object=modellist[[13]], path=getwd(), force=TRUE)
+model_Ice <- h2o.saveModel(object=modellist[[14]], path=getwd(), force=TRUE)
+model_Dragon <- h2o.saveModel(object=modellist[[15]], path=getwd(), force=TRUE)
+model_Dark <- h2o.saveModel(object=modellist[[16]], path=getwd(), force=TRUE)
+model_Steel <- h2o.saveModel(object=modellist[[17]], path=getwd(), force=TRUE)
+model_Flying <- h2o.saveModel(object=modellist[[18]], path=getwd(), force=TRUE)
