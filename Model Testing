@@ -1,0 +1,130 @@
+library(caret)
+library(bst)
+library(plyr)
+library(e1071)
+library(xgboost)
+library(randomForest)
+library(h2o)
+
+pokemonname = "Pikachu"  
+
+pokemon <- read.csv("pokemon.csv")
+combat <- read.csv("combats.csv")
+combat1 <- combat[,-c(1,2,3,4,7)]
+
+names(combat1)[1] <- "Type_1"
+names(combat1)[2] <- "Type_2"
+combat1 <- combat1[,c(3,1,4:9,2,10:15)]
+names(combat1)[1] <- "y"
+
+type <- pokemon[pokemon$Name == pokemonname,4]
+combat_1 <- combat1[combat1$Type_2 == type,]
+combat_2 <- combat1[combat1$Type_1 == type,]
+combat_2 <- combat_2[,c(1,9:15,2:8)]
+
+for (i in 1:nrow(combat_2)){
+  ifelse(combat_2[i,1] == 1,combat_2[i,1] <- 0, combat_2[i,1] <-1)
+}
+
+combat2 <-rbind(combat_1,combat_2)
+
+
+dummies <- dummyVars(y ~ ., data = combat2)           
+ex <- data.frame(predict(dummies, newdata = combat2)) 
+combat2 <- cbind(combat2$y, ex)                             
+names(combat2)[1] <- "y"                             
+rm(dummies, ex) 
+
+preProcValues <- preProcess(combat2[,2:ncol(combat2)], method = c("range"))
+combat2 <- predict(preProcValues, combat2)
+rm(preProcValues)
+
+
+h2o.init(nthreads=12, max_mem_size="64g")
+h2o.clusterInfo()
+
+data <- as.h2o(combat2)
+
+y <- "y"                               
+x <- setdiff(names(data), y)            
+parts <- h2o.splitFrame(data, 0.7, seed=99) 
+train <- parts[[1]]              
+test <- parts[[2]]    
+
+rf <- h2o.randomForest(x, y, train)
+h2o.performance(rf, train)
+#MSE:  0.1197674
+#RMSE:  0.3460743
+#MAE:  0.2660076
+#RMSLE:  0.2437861
+#Mean Residual Deviance :  0.1197674
+#R^2 :  0.5202358
+h2o.performance(rf, test)
+#MSE:  0.2397592
+#RMSE:  0.4896521
+#MAE:  0.3956019
+#RMSLE:  0.3427931
+#Mean Residual Deviance :  0.2397592
+#R^2 :  0.04092065
+
+gbm <- h2o.gbm(x,y,train)
+h2o.performance(gbm, train)
+#MSE:  0.1904284
+#RMSE:  0.436381
+#MAE:  0.4128034
+#RMSLE:  0.3078213
+#Mean Residual Deviance :  0.1904284
+#R^2 :  0.2371824
+h2o.performance(gbm, test)
+#MSE:  0.2232777
+#RMSE:  0.4725227
+#MAE:  0.4478209
+#RMSLE:  0.3346207
+#Mean Residual Deviance :  0.2232777
+#R^2 :  0.1068495
+
+dl <- h2o.deeplearning(x, y, train)
+h2o.performance(dl, train)
+#MSE:  0.2124196
+#RMSE:  0.46089
+#MAE:  0.4211746
+#RMSLE:  0.3311474
+#Mean Residual Deviance :  0.2124196
+h2o.performance(dl, test)
+#MSE:  0.2577369
+#RMSE:  0.507678
+#MAE:  0.4706399
+#RMSLE:  0.3613887
+#Mean Residual Deviance :  0.2577369
+
+
+xgb <- h2o.xgboost(x, y, training_frame = train,
+                   validation_frame = test,
+                   stopping_rounds = 5,
+                   ntrees =30,
+                   gamma = 0.0)
+h2o.performance(xgb,train)
+#MSE:  0.1662966
+#RMSE:  0.4077948
+#MAE:  0.3708523
+#RMSLE:  0.2879149
+#Mean Residual Deviance :  0.1662966
+
+h2o.performance(xgb,test)
+#MSE:  0.2215351
+#RMSE:  0.4706751
+#MAE:  0.4283749
+#RMSLE:  0.3326963
+#Mean Residual Deviance :  0.2215351
+
+summary(xgb)
+#Variable Importances: 
+#  variable relative_importance scaled_importance percentage
+#1   Type1Speed           84.887199          1.000000   0.183120
+#2      Type1HP           62.422264          0.735355   0.134659
+#3  Type1Attack           62.384148          0.734906   0.134576
+#4 Type1Defense           61.556385          0.725155   0.132791
+#5  Type1Sp_Atk           49.544392          0.583650   0.106878
+
+
+
