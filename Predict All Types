@@ -45,6 +45,8 @@ for (i in 1:18){
 
 }
 
+
+
 model_Grass <- h2o.saveModel(object=modellist[[1]], path=getwd(), force=TRUE)
 model_Fire <- h2o.saveModel(object=modellist[[2]], path=getwd(), force=TRUE)
 model_Water <- h2o.saveModel(object=modellist[[3]], path=getwd(), force=TRUE)
