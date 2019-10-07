@@ -1,11 +1,8 @@
-
 predict1 = function(pokemonname) {
    
    library(caret)
    library(h2o)
-   
-   # pokemonname = "Pikachu"
-   
+  
    pokemon <- read.csv("pokemon.csv")
    combat <- read.csv("combats.csv")
    
@@ -27,23 +24,27 @@ predict1 = function(pokemonname) {
                     "Type_2.Normal","Type_2.Poison","Type_2.Psychic","Type_2.Rock","Type_2.Steel","Type_2.Water",   
                     "Type2HP","Type2Attack","Type2Defense","Type2Sp_Atk","Type2Sp_Def","Type2Speed")
    
-   pred <- cbind(preddata,a)
+   pred <- cbind(preddata[,c(2:25)],a)
    
    h2o_te <- as.h2o(pred)
    
+   # pokemonname = "Pikachu"
    type <- pokemon[pokemon$Name == pokemonname,4]
-   dl <-h2o.loadModel(paste0("model_",type))
-   
+   dl <- h2o.loadModel(paste0("model_",type))
    p <- h2o.predict(dl, h2o_te)
-   predprob <- as.data.frame(p)
-   
-   predprob <- cbind(preddata$Name,predprob)
-   names(predprob) <- c("Name","Probability")
-   predprob <- predprob[with(predprob, order(-Probability)), ]
+   predresult <- as.data.frame(p)
+   predprob <- cbind.data.frame(preddata$Name,predresult$p1)
 
+   names(predprob) <- c("Name","Probability")
+   
+   predprob <- predprob[with(predprob, order(-Probability)), ]
+   
    result <- head(predprob)
    final <-merge(result,pokemon[,c(2,6:12)], by.x = "Name")
+   
    final <- final[with(final, order(-Probability)), ]
+   
    final
    
 }
+
