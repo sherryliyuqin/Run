@@ -1,9 +1,6 @@
 library(caret)
 library(bst)
 library(plyr)
-library(e1071)
-library(xgboost)
-library(randomForest)
 library(h2o)
 
 pokemonname = "Pikachu"  
@@ -39,6 +36,10 @@ preProcValues <- preProcess(combat2[,2:ncol(combat2)], method = c("range"))
 combat2 <- predict(preProcValues, combat2)
 rm(preProcValues)
 
+class(combat2$y) <- "Factor"
+levels(combat2$y) <- make.names(levels(factor(combat2$y)))
+levels(combat2$y)
+class(combat2$y)
 
 h2o.init(nthreads=12, max_mem_size="64g")
 h2o.clusterInfo()
@@ -53,50 +54,65 @@ test <- parts[[2]]
 
 rf <- h2o.randomForest(x, y, train)
 h2o.performance(rf, train)
-#MSE:  0.1197674
-#RMSE:  0.3460743
-#MAE:  0.2660076
-#RMSLE:  0.2437861
-#Mean Residual Deviance :  0.1197674
-#R^2 :  0.5202358
+#MSE:  0.1256269
+#RMSE:  0.3544388
+#LogLoss:  0.393756
+#Mean Per-Class Error:  0.1926191
+#AUC:  0.9126254
+#pr_auc:  0.9196937
+#Gini:  0.8252509
+#R^2:  0.496764
+
 h2o.performance(rf, test)
-#MSE:  0.2397592
-#RMSE:  0.4896521
-#MAE:  0.3956019
-#RMSLE:  0.3427931
-#Mean Residual Deviance :  0.2397592
-#R^2 :  0.04092065
+#MSE:  0.2287823
+#RMSE:  0.478312
+#LogLoss:  0.6646593
+#Mean Per-Class Error:  0.3625328
+#AUC:  0.7019076
+#pr_auc:  0.6980746
+#Gini:  0.4038152
+#R^2:  0.08482999
+
 
 gbm <- h2o.gbm(x,y,train)
 h2o.performance(gbm, train)
-#MSE:  0.1904284
-#RMSE:  0.436381
-#MAE:  0.4128034
-#RMSLE:  0.3078213
-#Mean Residual Deviance :  0.1904284
-#R^2 :  0.2371824
+#MSE:  0.1889367
+#RMSE:  0.4346685
+#LogLoss:  0.5619543
+#Mean Per-Class Error:  0.2748594
+#AUC:  0.8121753
+#pr_auc:  0.8073381
+#Gini:  0.6243506
+#R^2:  0.2431575
+
 h2o.performance(gbm, test)
-#MSE:  0.2232777
-#RMSE:  0.4725227
-#MAE:  0.4478209
-#RMSLE:  0.3346207
-#Mean Residual Deviance :  0.2232777
-#R^2 :  0.1068495
+#MSE:  0.2218567
+#RMSE:  0.4710167
+#LogLoss:  0.6332909
+#Mean Per-Class Error:  0.364894
+#AUC:  0.6920544
+#pr_auc:  0.6824811
+#Gini:  0.3841087
+#R^2:  0.1125337
 
 dl <- h2o.deeplearning(x, y, train)
 h2o.performance(dl, train)
-#MSE:  0.2124196
-#RMSE:  0.46089
-#MAE:  0.4211746
-#RMSLE:  0.3311474
-#Mean Residual Deviance :  0.2124196
-h2o.performance(dl, test)
-#MSE:  0.2577369
-#RMSE:  0.507678
-#MAE:  0.4706399
-#RMSLE:  0.3613887
-#Mean Residual Deviance :  0.2577369
+#MSE:  0.2217923
+#RMSE:  0.4709483
+#LogLoss:  0.6378652
+#Mean Per-Class Error:  0.3856905
+#AUC:  0.7294342
+#pr_auc:  0.7364616
+#Gini:  0.4588685
 
+h2o.performance(dl, test)
+#MSE:  0.2804111
+#RMSE:  0.5295385
+#LogLoss:  0.7977107
+#Mean Per-Class Error:  0.4687597
+#AUC:  0.5734852
+#pr_auc:  0.5546182
+#Gini:  0.1469704
 
 xgb <- h2o.xgboost(x, y, training_frame = train,
                    validation_frame = test,
@@ -104,27 +120,30 @@ xgb <- h2o.xgboost(x, y, training_frame = train,
                    ntrees =30,
                    gamma = 0.0)
 h2o.performance(xgb,train)
-#MSE:  0.1662966
-#RMSE:  0.4077948
-#MAE:  0.3708523
-#RMSLE:  0.2879149
-#Mean Residual Deviance :  0.1662966
+#MSE:  0.1669015
+#RMSE:  0.4085358
+#LogLoss:  0.5084502
+#Mean Per-Class Error:  0.2518254
+#AUC:  0.8519279
+#pr_auc:  0.8541541
+#Gini:  0.7038558
 
 h2o.performance(xgb,test)
-#MSE:  0.2215351
-#RMSE:  0.4706751
-#MAE:  0.4283749
-#RMSLE:  0.3326963
-#Mean Residual Deviance :  0.2215351
+#MSE:  0.2214337
+#RMSE:  0.4705675
+#LogLoss:  0.6327641
+#Mean Per-Class Error:  0.3683164
+#AUC:  0.6946656
+#pr_auc:  0.6756943
+#Gini:  0.3893312
 
 summary(xgb)
 #Variable Importances: 
 #  variable relative_importance scaled_importance percentage
-#1   Type1Speed           84.887199          1.000000   0.183120
-#2      Type1HP           62.422264          0.735355   0.134659
-#3  Type1Attack           62.384148          0.734906   0.134576
-#4 Type1Defense           61.556385          0.725155   0.132791
-#5  Type1Sp_Atk           49.544392          0.583650   0.106878
-
+#1   Type1Speed          376.235931          1.000000   0.186869
+#2 Type1Defense          266.069916          0.707189   0.132151
+#3  Type1Attack          255.526260          0.679165   0.126915
+#4      Type1HP          247.001480          0.656507   0.122681
+#5  Type1Sp_Atk          246.056763          0.653996   0.122211
 
 
