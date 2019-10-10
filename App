@@ -1,16 +1,18 @@
-options(java.parameters = "-Xmx64048m")
-
+options(java.parameters = "Xmx64048")
 library(shiny)
 library(fmsb)
 library(shinydashboard)
 library(caret)
 library(shinythemes)
 
+
 pokemon <- read.csv("pokemon.csv")
 fight <- read.csv("weakness.csv")
+combat <- read.csv("combats.csv")
 ui <- fluidPage(
   theme = shinytheme("yeti"),
   titlePanel(
+    windowTitle = "Pokemon Prediction System",
     fluidRow(
       column(4,""),
       column(4, img(src = "https://upload.cc/i1/2019/10/04/qavHYP.jpg", 
@@ -74,12 +76,17 @@ ui <- fluidPage(
                             title ="Body Style", width = 6, heigth = 6, h4(strong(textOutput("body_style")))),
                           box(
                             title ="Catch Rate",width = 6, heigth = 6, h4(strong(textOutput("catch_rate"))))
+                   )), 
+                 fluidRow(
+                   column(width = 12, 
+                          box(
+                            title ="Winning Probability", width = 6, heigth = 6, h4(strong(textOutput("win_prob"))))
                    )) 
                  )
                ),
         
         tabPanel("Fight Information", 
-                 plotOutput("radar",width = "100%", height = "550px"),
+                 plotOutput("radar",width = "100%", height = "400px"),
                  fluidRow(align ="center",
                  h4(tableOutput("table1")),
                  br(),
@@ -88,12 +95,14 @@ ui <- fluidPage(
         ),
         tabPanel("Fight Prediction", 
                  fluidRow(
+                   h4(strong("Selected Pokemon Type Summary")),
                    tableOutput("table4"),
                    tableOutput("table5"),
                    tableOutput("table6"),
                    tableOutput("table7")),
   
                  fluidRow(
+                   h4(strong("Top 6 Pokemon To Choose")),
                    tableOutput("table3")
                  )
                  )
@@ -125,11 +134,11 @@ server <- function(input, output) {
   })
   
   output$height <- renderText({
-    as.character(pokemon[pokemon$Name == input$Pokemon,"Height_m"])
+    paste0(as.character(pokemon[pokemon$Name == input$Pokemon,"Height_m"]),"M")
   })
   
   output$weight <- renderText({
-    as.character(pokemon[pokemon$Name == input$Pokemon,"Weight_kg"])
+    paste0(as.character(pokemon[pokemon$Name == input$Pokemon,"Weight_kg"]),"Kg")
   })
   
   output$color <- renderText({
@@ -167,6 +176,17 @@ server <- function(input, output) {
   output$catch_rate <- renderText({
     paste0(as.character(pokemon[pokemon$Name == input$Pokemon,"Catch_Rate"]),"%")
   })
+  
+  output$win_prob <- renderText({
+    a <- pokemon[pokemon$Name == input$Pokemon,"Number"]
+    b1 <- aggregate(Wins ~ First_pokemon,data =combat[combat$First_pokemon == a,], FUN = sum)[1,2]
+    total1 <- nrow(combat[combat$First_pokemon == a,])
+    b2 <- aggregate(Wins ~ Second_pokemon,data =combat[combat$Second_pokemon == a,], FUN = sum)[1,2]
+    total2 <- nrow(combat[combat$Second_pokemon == a,])
+    prob <- round((b1 + total2 - b2)*100/(total1 + total2),digit = 0)
+    paste0(prob,"%")
+  })
+    
   
   output$table1 <- renderTable(
     pokemon[pokemon$Name == input$Pokemon,c(2,6:12)],
@@ -224,3 +244,4 @@ server <- function(input, output) {
 } 
 
 shinyApp(ui = ui, server = server)
+
